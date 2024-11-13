@@ -1,7 +1,7 @@
 import pandas as pd
 from sklearn.compose import ColumnTransformer
 from sklearn.impute import SimpleImputer
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
 from sklearn.linear_model import LogisticRegression
@@ -39,20 +39,36 @@ data_preparation = ColumnTransformer(
     ]
 )
 
-# Modelowa Pipeline
+# Modelowa Pipeline z LogisticRegression
 model_pipeline = Pipeline(steps=[
     ('preprocessor', data_preparation),
     ('scaler', StandardScaler()),
     ('model', LogisticRegression(max_iter=10000))
 ])
 
-# Trening modelu i ocena na zbiorze testowym
-model_pipeline.fit(X_train, y_train)
-y_pred = model_pipeline.predict(X_test)
+# Siatka hiperparametrów
+param_grid = {
+    'model__penalty': ['l2'],
+    'model__C': [0.001, 0.01, 0.1, 1, 10],
+    'model__max_iter': [500, 1000, 2000]
+}
+
+# Wykonanie GridSearchCV
+grid_search = GridSearchCV(model_pipeline, param_grid, cv=5, scoring='accuracy', n_jobs=-1, error_score='raise')
+try:
+    grid_search.fit(X_train, y_train)
+except Exception as e:
+    print(f"Błąd podczas wykonywania GridSearchCV: {e}")
+
+print("Best parameters:", grid_search.best_params_)
+print(f"Best cross-validation score: {grid_search.best_score_}")
+
+best_model = grid_search.best_estimator_
+y_pred = best_model.predict(X_test)
 
 accuracy = accuracy_score(y_test, y_pred)
 report = classification_report(y_test, y_pred)
 
-print(f"Accuracy: {accuracy}")
+print(f"\nAccuracy on test set: {accuracy}")
 print("\nClassification Report:")
 print(report)
